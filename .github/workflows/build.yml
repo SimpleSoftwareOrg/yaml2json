@@ -114,27 +114,14 @@ jobs:
       run: |
         cd build
         echo 'test: value' | Out-File -FilePath test.yaml -Encoding utf8 -NoNewline
-        Write-Host "Searching for yaml2json.exe in build directory..."
-        $foundBinaries = Get-ChildItem -Recurse -Filter "yaml2json.exe" -ErrorAction SilentlyContinue
-        if ($foundBinaries) {
-          foreach ($binary in $foundBinaries) {
-            Write-Host "Found binary at: $($binary.FullName)"
-          }
-        } else {
-          Write-Host "No yaml2json.exe found via recursive search"
-        }
-        
         if (Test-Path "yaml2json.exe") {
-          Write-Host "Testing: .\yaml2json.exe"
           .\yaml2json.exe test.yaml
         } elseif (Test-Path "Release\yaml2json.exe") {
-          Write-Host "Testing: .\Release\yaml2json.exe"
           .\Release\yaml2json.exe test.yaml  
         } elseif (Test-Path "Debug\yaml2json.exe") {
-          Write-Host "Testing: .\Debug\yaml2json.exe"
           .\Debug\yaml2json.exe test.yaml
         } else {
-          Write-Host "Binary not found in expected locations. Directory contents:"
+          Write-Host "ERROR: Binary not found!"
           Get-ChildItem -Recurse
           exit 1
         }
@@ -145,19 +132,11 @@ jobs:
       run: |
         cd build
         if [ -f yaml2json ]; then
-          # Show binary info for debugging
-          file yaml2json
-          
           if [ "${{ matrix.cross_compile }}" = "true" ]; then
-            # Use cross-compilation strip for ARM64
             aarch64-linux-gnu-strip yaml2json
           else
-            # Use native strip for same-architecture builds
             strip yaml2json
           fi
-          
-          # Show binary info after stripping
-          ls -la yaml2json
         fi
       shell: bash
         
@@ -165,13 +144,11 @@ jobs:
       if: ${{ !startsWith(matrix.os, 'windows') }}
       run: |
         cd build
-        # Find the binary (Unix systems don't use file extensions)
         if [ -f yaml2json ]; then
           cp yaml2json yaml2json-${{ matrix.name }}
           echo "BINARY_PATH=build/yaml2json-${{ matrix.name }}" >> $GITHUB_ENV
         else
           echo "ERROR: Binary not found!"
-          ls -la
           exit 1
         fi
       shell: bash
