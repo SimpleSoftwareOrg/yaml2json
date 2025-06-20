@@ -114,10 +114,16 @@ jobs:
       run: |
         cd build
         echo 'test: value' | Out-File -FilePath test.yaml -Encoding utf8 -NoNewline
-        Get-ChildItem -Recurse -Name "yaml2json.exe" | ForEach-Object { 
-          Write-Host "Found binary at: $_"
-          $binaryPath = $_
+        Write-Host "Searching for yaml2json.exe in build directory..."
+        $foundBinaries = Get-ChildItem -Recurse -Filter "yaml2json.exe" -ErrorAction SilentlyContinue
+        if ($foundBinaries) {
+          foreach ($binary in $foundBinaries) {
+            Write-Host "Found binary at: $($binary.FullName)"
+          }
+        } else {
+          Write-Host "No yaml2json.exe found via recursive search"
         }
+        
         if (Test-Path "yaml2json.exe") {
           Write-Host "Testing: .\yaml2json.exe"
           .\yaml2json.exe test.yaml
