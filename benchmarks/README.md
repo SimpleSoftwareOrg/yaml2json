@@ -18,10 +18,10 @@ The benchmarks compare yaml2json against yq and lq on files of different sizes:
 
 | File Size | yaml2json | yq | lq | Speedup vs yq | Speedup vs lq |
 |-----------|-----------|----|----|---------------|---------------|
-| **117KB** | **2.1ms ± 0.3ms** | 22.9ms ± 0.9ms | 20.0ms ± 0.2ms | **10.7x faster** | **9.4x faster** |
-| **0.99MB** | **12.5ms ± 0.6ms** | 169.4ms ± 5.1ms | 145.5ms ± 0.9ms | **13.5x faster** | **11.6x faster** |
-| **6.53MB** | **68.8ms ± 1.2ms** | 1.012s ± 0.042s | 911.8ms ± 48.5ms | **14.7x faster** | **13.3x faster** |
-| **13.23MB** | **139.8ms ± 1.1ms** | 2.064s ± 0.053s | 1.857s ± 0.042s | **14.8x faster** | **13.3x faster** |
+| **117KB** | **3.1ms ± 0.7ms** | 22.8ms ± 0.5ms | 20.4ms ± 0.4ms | **7.3x faster** | **6.6x faster** |
+| **0.99MB** | **12.2ms ± 1.0ms** | 168.9ms ± 2.9ms | 150.0ms ± 20.8ms | **13.8x faster** | **12.3x faster** |
+| **6.53MB** | **68.4ms ± 0.4ms** | 992.0ms ± 45.4ms | 898.4ms ± 25.1ms | **14.5x faster** | **13.1x faster** |
+| **13.23MB** | **140.4ms ± 2.7ms** | 2.078s ± 0.063s | 1.856s ± 0.048s | **14.8x faster** | **13.2x faster** |
 
 ## Files
 
@@ -41,7 +41,7 @@ The benchmarks compare yaml2json against yq and lq on files of different sizes:
 
 - **Tool**: hyperfine for professional benchmarking
 - **Warmup**: 3 runs to eliminate cold start effects
-- **Measurements**: 10 runs for statistical accuracy
+- **Measurements**: 20 runs for statistical accuracy
 - **Output**: JSON and Markdown formats for analysis
 - **Reproducibility**: All test files and scripts included
 

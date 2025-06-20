@@ -73,7 +73,7 @@ benchmark_file() {
     echo ""
     
     # Run hyperfine benchmark
-    hyperfine --warmup 3 --runs 10 \
+    hyperfine -N --warmup 5 --runs 20 \
         --export-json "${name}_results.json" \
         --export-markdown "${name}_results.md" \
         "../build/yaml2json $file" \
