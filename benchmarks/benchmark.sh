@@ -50,22 +50,31 @@ download_lq() {
         *) echo "❌ Unsupported architecture: $arch"; exit 1 ;;
     esac
     
-    # Map OS names  
+    # Map OS names for clux/lq naming convention
     case $os in
         darwin) os="apple-darwin" ;;
         linux) os="unknown-linux-gnu" ;;
         *) echo "❌ Unsupported OS: $os"; exit 1 ;;
     esac
     
-    local binary_name="lq-${arch}-${os}"
-    local download_url="https://github.com/jzelinskie/lq/releases/latest/download/${binary_name}"
+    local archive_name="lq-${arch}-${os}.tar.xz"
+    local download_url="https://github.com/clux/lq/releases/latest/download/${archive_name}"
     
     if command -v curl &> /dev/null; then
-        curl -L -o lq "$download_url"
+        curl -L -o "$archive_name" "$download_url"
     elif command -v wget &> /dev/null; then
-        wget -O lq "$download_url"
+        wget -O "$archive_name" "$download_url"
     else
         echo "❌ Neither curl nor wget found. Please install one to download lq."
+        exit 1
+    fi
+    
+    # Extract the binary from tar.xz
+    if command -v tar &> /dev/null; then
+        tar -xf "$archive_name" --strip-components=1 "*/lq" 2>/dev/null || tar -xf "$archive_name" "lq" 2>/dev/null
+        rm "$archive_name"
+    else
+        echo "❌ tar not found. Cannot extract lq binary."
         exit 1
     fi
     
