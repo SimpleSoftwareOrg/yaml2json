@@ -9,6 +9,7 @@ set -e
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
 NC='\033[0m'
 
 print_header() {
@@ -25,9 +26,78 @@ print_success() {
     echo -e "${GREEN}$1${NC}"
 }
 
+print_warning() {
+    echo -e "${YELLOW}$1${NC}"
+}
+
+# Download lq if not present
+download_lq() {
+    if [[ -f "lq" ]]; then
+        print_success "✓ lq: $(realpath lq)"
+        return
+    fi
+    
+    print_warning "⬇ Downloading lq binary..."
+    
+    # Detect OS and architecture
+    local os=$(uname -s | tr '[:upper:]' '[:lower:]')
+    local arch=$(uname -m)
+    
+    # Map architecture names
+    case $arch in
+        x86_64) arch="x86_64" ;;
+        arm64|aarch64) arch="aarch64" ;;
+        *) echo "❌ Unsupported architecture: $arch"; exit 1 ;;
+    esac
+    
+    # Map OS names  
+    case $os in
+        darwin) os="apple-darwin" ;;
+        linux) os="unknown-linux-gnu" ;;
+        *) echo "❌ Unsupported OS: $os"; exit 1 ;;
+    esac
+    
+    local binary_name="lq-${arch}-${os}"
+    local download_url="https://github.com/jzelinskie/lq/releases/latest/download/${binary_name}"
+    
+    if command -v curl &> /dev/null; then
+        curl -L -o lq "$download_url"
+    elif command -v wget &> /dev/null; then
+        wget -O lq "$download_url"
+    else
+        echo "❌ Neither curl nor wget found. Please install one to download lq."
+        exit 1
+    fi
+    
+    chmod +x lq
+    print_success "✓ lq downloaded and ready"
+}
+
+# Generate test files if they don't exist
+generate_test_files() {
+    local test_files=("small_117kb.yaml" "medium_1mb.yaml" "large_6_5mb.yaml" "very_large_13mb.yaml")
+    local missing_files=()
+    
+    # Check which files are missing
+    for file in "${test_files[@]}"; do
+        if [[ ! -f "$file" ]]; then
+            missing_files+=("$file")
+        fi
+    done
+    
+    # Generate missing files if any
+    if [[ ${#missing_files[@]} -gt 0 ]]; then
+        print_warning "⚡ Generating test files..."
+        ./generate_compatible_yaml.sh > /dev/null 2>&1
+        print_success "✓ Test files generated"
+    else
+        print_success "✓ Test files already exist"
+    fi
+}
+
 # Check if tools are available
 check_tools() {
-    print_header "Checking Tools"
+    print_header "Setup and Dependencies"
     
     # Check hyperfine
     if ! command -v hyperfine &> /dev/null; then
@@ -50,12 +120,11 @@ check_tools() {
     fi
     print_success "✓ yq: $(which yq)"
     
-    # Check lq
-    if [[ ! -f "lq" ]]; then
-        echo "❌ lq not found in benchmarks/"
-        exit 1
-    fi
-    print_success "✓ lq: $(realpath lq)"
+    # Download lq if needed
+    download_lq
+    
+    # Generate test files if needed
+    generate_test_files
     
     echo ""
 }
@@ -69,11 +138,11 @@ benchmark_file() {
     
     print_header "Benchmarking: $name (${filesize_mb}MB)"
     print_info "File: $file"
-    print_info "Using 3 warmup runs and 10 measurement runs"
+    print_info "Using 3 warmup runs and 20 measurement runs"
     echo ""
     
     # Run hyperfine benchmark
-    hyperfine -N --warmup 5 --runs 20 \
+    hyperfine -N --warmup 3 --runs 20 \
         --export-json "${name}_results.json" \
         --export-markdown "${name}_results.md" \
         "../build/yaml2json $file" \
@@ -94,19 +163,9 @@ main() {
     
     check_tools
     
-    # Check if test files exist
+    # Define test files and names
     local test_files=("small_117kb.yaml" "medium_1mb.yaml" "large_6_5mb.yaml" "very_large_13mb.yaml")
     local test_names=("small" "medium" "large" "very_large")
-    
-    for i in "${!test_files[@]}"; do
-        local file="${test_files[$i]}"
-        local name="${test_names[$i]}"
-        
-        if [[ ! -f "$file" ]]; then
-            echo "❌ Test file $file not found. Please run generate_compatible_yaml.sh first."
-            exit 1
-        fi
-    done
     
     # Run benchmarks
     for i in "${!test_files[@]}"; do

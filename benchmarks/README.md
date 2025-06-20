@@ -5,12 +5,15 @@ Professional performance benchmarks for yaml2json using [hyperfine](https://gith
 ## Quick Start
 
 ```bash
-# Generate test files
-./generate_compatible_yaml.sh
-
-# Run all benchmarks
+# Run benchmarks (everything is automated)
 ./benchmark.sh
 ```
+
+The script automatically:
+- Downloads lq binary if not present
+- Generates test files if needed
+- Runs comprehensive benchmarks
+- Saves results in JSON and Markdown formats
 
 ## Results
 
@@ -25,17 +28,22 @@ The benchmarks compare yaml2json against yq and lq on files of different sizes:
 
 ## Files
 
-- `benchmark.sh` - Main benchmarking script using hyperfine
-- `generate_compatible_yaml.sh` - Creates test YAML files
-- `*_results.json` - Hyperfine results in JSON format
-- `*_results.md` - Hyperfine results in Markdown format
-- `*.yaml` - Generated test files
+- `benchmark.sh` - Main benchmarking script (auto-downloads dependencies, generates test files)
+- `generate_compatible_yaml.sh` - Creates test YAML files (called automatically)
+- `*_results.json` - Hyperfine results in JSON format (generated)
+- `*_results.md` - Hyperfine results in Markdown format (generated)
+- `*.yaml` - Generated test files (generated)
+- `lq` - Downloaded lq binary (downloaded automatically)
 
 ## Requirements
 
+### Required
 - [hyperfine](https://github.com/sharkdp/hyperfine) - `brew install hyperfine`
 - [yq](https://github.com/mikefarah/yq) - `brew install yq`
-- [lq](https://github.com/jzelinskie/lq) - Download from releases
+- `bc` - `brew install bc` (for file size calculations)
+
+### Automatic (downloaded by script)
+- [lq](https://github.com/jzelinskie/lq) - Downloaded automatically for your platform
 
 ## Methodology
 
@@ -43,7 +51,7 @@ The benchmarks compare yaml2json against yq and lq on files of different sizes:
 - **Warmup**: 3 runs to eliminate cold start effects
 - **Measurements**: 20 runs for statistical accuracy
 - **Output**: JSON and Markdown formats for analysis
-- **Reproducibility**: All test files and scripts included
+- **Reproducibility**: All dependencies handled automatically
 
 ## Test Files
 
@@ -56,22 +64,21 @@ The benchmark uses four test files with different characteristics:
 
 All files are generated to be compatible with all three tools (no advanced YAML features that might cause parsing differences).
 
+## Cross-Platform Support
+
+The benchmark script automatically detects your platform and downloads the appropriate lq binary:
+
+- **macOS**: Both Intel (x86_64) and Apple Silicon (aarch64)
+- **Linux**: Both x86_64 and ARM64 (aarch64) architectures
+
 ## Reproducing Results
 
 ```bash
-# Install dependencies
-brew install hyperfine yq bc coreutils
+# Install only the required dependencies  
+brew install hyperfine yq bc
 
-# Download lq
-wget https://github.com/jzelinskie/lq/releases/latest/download/lq-aarch64-apple-darwin
-mv lq-aarch64-apple-darwin lq
-chmod +x lq
-
-# Generate test files
-./generate_compatible_yaml.sh
-
-# Run benchmarks
+# Run benchmarks (everything else is automatic)
 ./benchmark.sh
 ```
 
-The results will be saved as JSON and Markdown files for further analysis. 
+The script handles all other dependencies and test data generation automatically. Results are saved as JSON and Markdown files for further analysis. 

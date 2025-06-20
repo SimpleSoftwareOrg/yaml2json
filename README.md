@@ -38,11 +38,10 @@ make -j$(nproc)
 
 # Benchmark execution
 cd ../benchmarks
-./generate_compatible_yaml.sh  # Generate standardized test files
-./benchmark.sh                 # Execute comparative measurements
+./benchmark.sh                 # Execute comparative measurements (auto-generates test files)
 ```
 
-**Dependencies**: hyperfine, yq, and lq. Dependency validation is performed automatically.
+**Dependencies**: hyperfine and yq (lq is downloaded automatically). Dependency validation is performed automatically.
 
 **Test Protocol**: Each measurement consists of 3 warmup iterations followed by 20 timed executions using hyperfine. Statistical analysis includes mean execution time, standard deviation, and confidence intervals.
 

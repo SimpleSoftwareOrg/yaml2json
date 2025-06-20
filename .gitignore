@@ -80,3 +80,8 @@ randomized_benchmark_results.csv
 optimized_benchmark_results.csv
 benchmark_results.csv
 lq 
+# Benchmark generated files
+benchmarks/*.yaml
+benchmarks/*_results.json
+benchmarks/*_results.md
+benchmarks/lq
