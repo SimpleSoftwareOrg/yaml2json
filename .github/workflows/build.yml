@@ -1,0 +1,266 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ master, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux builds
+          - name: linux-x86_64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            cmake_flags: -DCMAKE_BUILD_TYPE=Release
+            binary_suffix: ""
+            
+          - name: linux-arm64
+            os: ubuntu-22.04
+            target: aarch64-unknown-linux-gnu
+            cmake_flags: -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-aarch64-linux.cmake
+            binary_suffix: ""
+            cross_compile: true
+            
+          # macOS builds
+          - name: macos-x86_64
+            os: macos-13  # Intel runner
+            target: x86_64-apple-darwin
+            cmake_flags: -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64
+            binary_suffix: ""
+            
+          - name: macos-arm64
+            os: macos-14  # Apple Silicon runner
+            target: aarch64-apple-darwin
+            cmake_flags: -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
+            binary_suffix: ""
+            
+          # Windows builds
+          - name: windows-x86_64
+            os: windows-2022
+            target: x86_64-pc-windows-msvc
+            cmake_flags: -A x64 -DCMAKE_BUILD_TYPE=Release
+            binary_suffix: ".exe"
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-22.04'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential
+        
+    - name: Install cross-compilation tools (Linux ARM64)
+      if: matrix.cross_compile
+      run: |
+        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
+        
+    - name: Install dependencies (macOS)
+      if: startsWith(matrix.os, 'macos')
+      run: |
+        brew install cmake
+        
+    - name: Install dependencies (Windows)
+      if: matrix.os == 'windows-2022'
+      uses: microsoft/setup-msbuild@v2
+      
+    - name: Create toolchain file (Linux ARM64)
+      if: matrix.cross_compile
+      run: |
+        mkdir -p cmake
+        cat > cmake/toolchain-aarch64-linux.cmake << 'EOF'
+        set(CMAKE_SYSTEM_NAME Linux)
+        set(CMAKE_SYSTEM_PROCESSOR aarch64)
+        set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
+        set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
+        set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+        set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+        set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+        EOF
+        
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake .. ${{ matrix.cmake_flags }}
+        
+    - name: Build
+      run: |
+        cd build
+        cmake --build . --config Release --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }}
+        
+    - name: Test binary (Unix)
+      if: ${{ !matrix.cross_compile && !startsWith(matrix.os, 'windows') }}
+      run: |
+        cd build
+        echo 'test: value' > test.yaml
+        ./yaml2json test.yaml
+      shell: bash
+      
+    - name: Test binary (Windows)
+      if: ${{ !matrix.cross_compile && startsWith(matrix.os, 'windows') }}
+      run: |
+        cd build
+        echo 'test: value' | Out-File -FilePath test.yaml -Encoding utf8 -NoNewline
+        Get-ChildItem -Recurse -Name "yaml2json.exe" | ForEach-Object { 
+          Write-Host "Found binary at: $_"
+          $binaryPath = $_
+        }
+        if (Test-Path "yaml2json.exe") {
+          Write-Host "Testing: .\yaml2json.exe"
+          .\yaml2json.exe test.yaml
+        } elseif (Test-Path "Release\yaml2json.exe") {
+          Write-Host "Testing: .\Release\yaml2json.exe"
+          .\Release\yaml2json.exe test.yaml  
+        } elseif (Test-Path "Debug\yaml2json.exe") {
+          Write-Host "Testing: .\Debug\yaml2json.exe"
+          .\Debug\yaml2json.exe test.yaml
+        } else {
+          Write-Host "Binary not found in expected locations. Directory contents:"
+          Get-ChildItem -Recurse
+          exit 1
+        }
+      shell: powershell
+        
+    - name: Strip binary (Unix)
+      if: ${{ !startsWith(matrix.os, 'windows') }}
+      run: |
+        cd build
+        if [ -f yaml2json ]; then
+          # Show binary info for debugging
+          file yaml2json
+          
+          if [ "${{ matrix.cross_compile }}" = "true" ]; then
+            # Use cross-compilation strip for ARM64
+            aarch64-linux-gnu-strip yaml2json
+          else
+            # Use native strip for same-architecture builds
+            strip yaml2json
+          fi
+          
+          # Show binary info after stripping
+          ls -la yaml2json
+        fi
+      shell: bash
+        
+    - name: Find and rename binary for release (Unix)
+      if: ${{ !startsWith(matrix.os, 'windows') }}
+      run: |
+        cd build
+        # Find the binary (Unix systems don't use file extensions)
+        if [ -f yaml2json ]; then
+          cp yaml2json yaml2json-${{ matrix.name }}
+          echo "BINARY_PATH=build/yaml2json-${{ matrix.name }}" >> $GITHUB_ENV
+        else
+          echo "ERROR: Binary not found!"
+          ls -la
+          exit 1
+        fi
+      shell: bash
+      
+    - name: Find and rename binary for release (Windows)
+      if: ${{ startsWith(matrix.os, 'windows') }}
+      run: |
+        cd build
+        if (Test-Path "yaml2json.exe") {
+          Copy-Item "yaml2json.exe" "yaml2json-${{ matrix.name }}.exe"
+          echo "BINARY_PATH=build/yaml2json-${{ matrix.name }}.exe" >> $env:GITHUB_ENV
+        } elseif (Test-Path "Release\yaml2json.exe") {
+          Copy-Item "Release\yaml2json.exe" "yaml2json-${{ matrix.name }}.exe"
+          echo "BINARY_PATH=build/yaml2json-${{ matrix.name }}.exe" >> $env:GITHUB_ENV
+        } elseif (Test-Path "Debug\yaml2json.exe") {
+          Copy-Item "Debug\yaml2json.exe" "yaml2json-${{ matrix.name }}.exe"
+          echo "BINARY_PATH=build/yaml2json-${{ matrix.name }}.exe" >> $env:GITHUB_ENV
+        } else {
+          Write-Host "ERROR: Binary not found!"
+          Get-ChildItem -Recurse
+          exit 1
+        }
+      shell: powershell
+        
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: yaml2json-${{ matrix.name }}
+        path: ${{ env.BINARY_PATH }}
+        retention-days: 7
+
+  release:
+    needs: build
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+        
+    - name: Prepare release assets
+      run: |
+        mkdir -p release-assets
+        find artifacts -name "yaml2json-*" -type f -exec cp {} release-assets/ \;
+        ls -la release-assets/
+        
+    - name: Generate checksums
+      run: |
+        cd release-assets
+        sha256sum yaml2json-* > checksums.txt
+        cat checksums.txt
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          release-assets/*
+        body: |
+          ## yaml2json ${{ github.ref_name }}
+          
+          High-performance YAML to JSON converter with optimizations for speed and large files.
+          
+          ### Downloads
+          
+          Choose the appropriate binary for your platform:
+          
+          - **macOS ARM64** (Apple Silicon): `yaml2json-macos-arm64`
+          - **macOS x86_64** (Intel): `yaml2json-macos-x86_64`  
+          - **Linux x86_64**: `yaml2json-linux-x86_64`
+          - **Linux ARM64**: `yaml2json-linux-arm64`
+          - **Windows x86_64**: `yaml2json-windows-x86_64.exe`
+          
+          ### Installation
+          
+          ```bash
+          # Download and install (replace URL with your platform's binary)
+          curl -L -o yaml2json https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/yaml2json-linux-x86_64
+          chmod +x yaml2json
+          sudo mv yaml2json /usr/local/bin/
+          ```
+          
+          ### Verify Installation
+          
+          ```bash
+          echo "test: value" | yaml2json
+          # Should output: {"test":"value"}
+          ```
+          
+          See `checksums.txt` for SHA256 checksums of all binaries.
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

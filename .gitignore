@@ -1,0 +1,82 @@
+# Build directories
+build/
+build-*/
+cmake-build-*/
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+
+# Generated files
+*.cmake
+!CMakeLists.txt
+
+# Compiled binaries
+yaml2json
+yaml2json.exe
+yaml2json_*
+
+# Object files
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+
+# Debug files
+*.dSYM/
+*.pdb
+*.ilk
+
+# IDE files
+.vscode/
+.vs/
+*.vcxproj*
+*.sln
+*.user
+.idea/
+*.iml
+
+# macOS
+.DS_Store
+*.app
+
+# Linux
+*.AppImage
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Package managers
+node_modules/
+.npm/
+
+# Test files (keep example files)
+test_*.yaml
+test_*.json
+*.yaml.bak
+*.json.bak
+
+# Performance test data
+large_monorepo/
+rules_js_pnpm_v10/
+randomized_benchmark_results.csv
+optimized_benchmark_results.csv
+benchmark_results.csv
+lq 
