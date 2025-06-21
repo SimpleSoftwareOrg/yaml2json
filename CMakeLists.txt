@@ -89,32 +89,34 @@ target_link_libraries(yaml2json PRIVATE
     CLI11::CLI11
 )
 
-# Enable testing
-enable_testing()
+# Enable testing (only for native builds)
+if(NOT CMAKE_CROSSCOMPILING)
+    enable_testing()
 
-# Test executable
-add_executable(yaml2json_test
-    tests/test_main.cpp
-    tests/FileReaderTest.cpp
-    tests/YamlToJsonConverterTest.cpp
-    tests/JsonFormatterTest.cpp
-    tests/ErrorHandlerTest.cpp
-    tests/IntegrationTest.cpp
-)
+    # Test executable
+    add_executable(yaml2json_test
+        tests/test_main.cpp
+        tests/FileReaderTest.cpp
+        tests/YamlToJsonConverterTest.cpp
+        tests/JsonFormatterTest.cpp
+        tests/ErrorHandlerTest.cpp
+        tests/IntegrationTest.cpp
+    )
 
-target_link_libraries(yaml2json_test PRIVATE
-    yaml2json_lib
-    GTest::gtest
-    GTest::gtest_main
-    GTest::gmock
-)
+    target_link_libraries(yaml2json_test PRIVATE
+        yaml2json_lib
+        GTest::gtest
+        GTest::gtest_main
+        GTest::gmock
+    )
 
-# Add test discovery
-include(GoogleTest)
-gtest_discover_tests(yaml2json_test)
+    # Add test discovery
+    include(GoogleTest)
+    gtest_discover_tests(yaml2json_test)
 
-# Copy test data to build directory
-file(COPY tests/test_data DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/tests/)
+    # Copy test data to build directory
+    file(COPY tests/test_data DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/tests/)
+endif()
 
 # Install target
 install(TARGETS yaml2json DESTINATION bin) 
