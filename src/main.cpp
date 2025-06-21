@@ -1,6 +1,7 @@
 #include <CLI/CLI.hpp>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <cstdlib>
 #include <cerrno>
 #include <cstring>
@@ -17,19 +18,22 @@ int main(int argc, char **argv) {
     // CLI setup
     CLI::App app{"High-performance YAML to JSON converter"};
     
-    // Input and output file options (required)
+    // Input and output file options (optional for backwards compatibility)
     std::string input_file;
     std::string output_file;
     bool pretty_print = false;
+    std::vector<std::string> positional_args;
     
+    // Optional flags for explicit file specification
     app.add_option("-i,--input", input_file, "Input YAML file")
-        ->required()
         ->check(CLI::ExistingFile);
     
-    app.add_option("-o,--output", output_file, "Output JSON file")
-        ->required();
+    app.add_option("-o,--output", output_file, "Output JSON file");
     
     app.add_flag("-p,--pretty", pretty_print, "Pretty-print JSON output with indentation");
+    
+    // Positional arguments for backwards compatibility
+    app.add_option("files", positional_args, "Input file [output file] (use stdin/stdout if omitted)");
     
     // Version option
     app.set_version_flag("-v,--version", std::string("yaml2json built on ") + BUILD_DATE);
@@ -41,15 +45,67 @@ int main(int argc, char **argv) {
         return app.exit(e);
     }
     
+    // Determine input and output sources with backwards compatibility
+    bool use_stdin = false;
+    bool use_stdout = false;
+    
+    // Priority: explicit flags > positional args > stdin/stdout
+    if (input_file.empty() && !positional_args.empty()) {
+        input_file = positional_args[0];
+    }
+    
+    if (output_file.empty() && positional_args.size() > 1) {
+        output_file = positional_args[1];
+    }
+    
+    // If no input specified, use stdin
+    if (input_file.empty()) {
+        use_stdin = true;
+    }
+    
+    // If no output specified, use stdout
+    if (output_file.empty()) {
+        use_stdout = true;
+    }
+    
+    // Validate input file exists (if not using stdin)
+    if (!use_stdin) {
+        std::ifstream test_input(input_file);
+        if (!test_input.good()) {
+            std::cerr << "Error: Cannot open input file '" << input_file 
+                     << "': " << std::strerror(errno) << std::endl;
+            return 1;
+        }
+    }
+    
     try {
-        // Read input file
-        auto file_content = yaml2json::FileReader::read_file(input_file);
+        // Read input (file or stdin)
+        std::string yaml_content;
+        std::string source_name;
+        
+        if (use_stdin) {
+            // Read from stdin
+            std::ostringstream buffer;
+            buffer << std::cin.rdbuf();
+            yaml_content = buffer.str();
+            source_name = "<stdin>";
+            
+            if (yaml_content.empty()) {
+                std::cerr << "Error: No input provided via stdin" << std::endl;
+                return 1;
+            }
+        } else {
+            // Read from file using FileReader
+            auto file_content = yaml2json::FileReader::read_file(input_file);
+            yaml_content.assign(file_content.data(), file_content.size());
+            source_name = input_file;
+        }
         
         // Convert YAML to JSON
         std::string json_output = yaml2json::YamlToJsonConverter::convert(
-            file_content.mutable_data(), 
-            file_content.size(), 
-            input_file
+            const_cast<char*>(yaml_content.data()), 
+            yaml_content.size(), 
+            source_name
         );
         
         // Format JSON if requested
@@ -57,20 +113,32 @@ int main(int argc, char **argv) {
             json_output = yaml2json::JsonFormatter::pretty_print(json_output);
         }
         
-        // Write output file
-        std::ofstream output(output_file, std::ios::binary);
-        if (!output) {
-            std::cerr << "Error: Failed to create output file '" << output_file 
-                     << "': " << std::strerror(errno) << std::endl;
-            return 1;
-        }
-        
-        output.write(json_output.data(), json_output.size());
-        
-        if (!output.good()) {
-            std::cerr << "Error: Failed to write to output file '" << output_file 
-                     << "': " << std::strerror(errno) << std::endl;
-            return 1;
+        // Write output (file or stdout)
+        if (use_stdout) {
+            // Write to stdout
+            std::cout.write(json_output.data(), json_output.size());
+            std::cout.flush();
+            
+            if (!std::cout.good()) {
+                std::cerr << "Error: Failed to write to stdout" << std::endl;
+                return 1;
+            }
+        } else {
+            // Write to file
+            std::ofstream output(output_file, std::ios::binary);
+            if (!output) {
+                std::cerr << "Error: Failed to create output file '" << output_file 
+                         << "': " << std::strerror(errno) << std::endl;
+                return 1;
+            }
+            
+            output.write(json_output.data(), json_output.size());
+            
+            if (!output.good()) {
+                std::cerr << "Error: Failed to write to output file '" << output_file 
+                         << "': " << std::strerror(errno) << std::endl;
+                return 1;
+            }
         }
         
     } catch (const yaml2json::ConversionError& e) {

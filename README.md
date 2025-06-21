@@ -73,32 +73,69 @@ curl -sSL https://raw.githubusercontent.com/SimpleSoftwareOrg/yaml2json/main/ins
 
 ## Usage
 
-```bash
-# Basic file conversion
-yaml2json --input input.yaml --output output.json
+The tool supports multiple input/output methods for maximum flexibility and backwards compatibility:
 
-# Short form options
+### File-to-File Conversion
+
+```bash
+# Explicit flags (recommended for scripts)
+yaml2json --input input.yaml --output output.json
 yaml2json -i input.yaml -o output.json
 
-# Pretty-printed JSON output
-yaml2json --input input.yaml --output output.json --pretty
+# Positional arguments (backwards compatible)
+yaml2json input.yaml output.json
+yaml2json input.yaml output.json --pretty
+```
 
-# Show help
-yaml2json --help
+### Pipeline/Stream Processing
 
-# Show version (build date)
-yaml2json --version
+```bash
+# Stdin to stdout (great for pipelines)
+cat input.yaml | yaml2json
+curl -s https://example.com/data.yaml | yaml2json
+
+# File to stdout
+yaml2json input.yaml
+yaml2json --input input.yaml
+
+# Stdin to file
+cat input.yaml | yaml2json --output output.json
+```
+
+### Pretty-Print JSON
+
+```bash
+# Any of the above with pretty formatting
+yaml2json input.yaml --pretty
+yaml2json -i input.yaml -o output.json --pretty
+cat input.yaml | yaml2json --pretty
 ```
 
 ### Command-Line Options
 
 | Option | Short | Description | Required |
 |--------|-------|-------------|----------|
-| `--input` | `-i` | Input YAML file path | Yes |
-| `--output` | `-o` | Output JSON file path | Yes |
+| `--input` | `-i` | Input YAML file path | No* |
+| `--output` | `-o` | Output JSON file path | No* |
 | `--pretty` | `-p` | Pretty-print JSON with indentation | No |
 | `--help` | `-h` | Show help message and exit | No |
 | `--version` | `-v` | Show version (build date) and exit | No |
+
+\* *Uses stdin/stdout when not specified. Supports positional arguments for backwards compatibility.*
+
+### Usage Examples
+
+```bash
+# Traditional usage
+yaml2json config.yaml config.json
+
+# Pipeline processing
+kubectl get pods -o yaml | yaml2json | jq '.items[0].metadata.name'
+
+# Mixed usage
+yaml2json --input config.yaml | jq '.database.host'
+cat config.yaml | yaml2json --output config.json --pretty
+```
 
 The tool will provide verbose error messages for any issues encountered during conversion.
 
