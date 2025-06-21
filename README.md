@@ -4,23 +4,23 @@ A YAML to JSON converter implemented using the RapidYAML library, designed for h
 
 ## Performance Analysis
 
-Comparative performance measurements were conducted using [hyperfine](https://github.com/sharkdp/hyperfine) on Apple Silicon (macOS 14.5.0) against established tools yq and lq:
+Comparative performance measurements were conducted using [hyperfine](https://github.com/sharkdp/hyperfine) on Apple Silicon (macOS) against established tools yq and lq:
 
 | File Size | yaml2json | yq | lq | Relative Performance |
 |-----------|-----------|----|----|---------------------|
-| 117KB | 3.1ms ± 0.7ms | 22.8ms ± 0.5ms | 20.4ms ± 0.4ms | 7.3x / 6.6x improvement |
-| 0.99MB | 12.2ms ± 1.0ms | 168.9ms ± 2.9ms | 150.0ms ± 20.8ms | 13.8x / 12.3x improvement |
-| 6.53MB | 68.4ms ± 0.4ms | 992.0ms ± 45.4ms | 898.4ms ± 25.1ms | 14.5x / 13.1x improvement |
-| 13.23MB | 140.4ms ± 2.7ms | 2.078s ± 0.063s | 1.856s ± 0.048s | 14.8x / 13.2x improvement |
+| 117KB | **3.0ms ± 0.4ms** | 23.4ms ± 1.0ms | 20.6ms ± 0.4ms | **7.9x / 6.95x improvement** |
+| 0.99MB | **8.9ms ± 0.2ms** | 171.7ms ± 10.5ms | 147.5ms ± 5.3ms | **19.35x / 16.63x improvement** |
+| 6.53MB | **47.9ms ± 0.4ms** | 991.6ms ± 22.1ms | 905.7ms ± 23.5ms | **20.69x / 18.90x improvement** |
+| 13.23MB | **96.4ms ± 2.2ms** | 2.091s ± 0.061s | 1.871s ± 0.052s | **21.68x / 19.40x improvement** |
 
 ### Implementation Characteristics
 
 - Zero-copy parsing using memory-mapped file input
-- Compiler optimizations: `-Ofast -flto=thin -march=native`
+- Optimized compiler flags: `-O3 -march=native` with Link Time Optimization (LTO)
 - Direct JSON serialization without intermediate data structures
 - Linear time complexity scaling with input size
 - Deterministic parsing behavior across test cases
-- Consistent performance scaling (10-15x improvement ratio maintained across file sizes)
+- Excellent performance scaling (**7-21x improvement** over competitors, with **better scaling** on larger files)
 
 ### Benchmark Methodology
 
