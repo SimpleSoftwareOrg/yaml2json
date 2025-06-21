@@ -101,6 +101,7 @@ if(NOT CMAKE_CROSSCOMPILING)
         tests/JsonFormatterTest.cpp
         tests/ErrorHandlerTest.cpp
         tests/IntegrationTest.cpp
+        tests/CliCompatibilityTest.cpp
     )
 
     target_link_libraries(yaml2json_test PRIVATE

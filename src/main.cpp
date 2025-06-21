@@ -49,13 +49,23 @@ int main(int argc, char **argv) {
     bool use_stdin = false;
     bool use_stdout = false;
     
-    // Priority: explicit flags > positional args > stdin/stdout
-    if (input_file.empty() && !positional_args.empty()) {
-        input_file = positional_args[0];
-    }
-    
-    if (output_file.empty() && positional_args.size() > 1) {
-        output_file = positional_args[1];
+    // Handle positional arguments (can supplement explicit flags)
+    if (!positional_args.empty()) {
+        // If no explicit input, use first positional arg as input
+        if (input_file.empty()) {
+            input_file = positional_args[0];
+        }
+        
+        // If no explicit output, use second positional arg as output (if available)
+        // This works whether input came from flag or positional
+        if (output_file.empty()) {
+            if (positional_args.size() > 1) {
+                output_file = positional_args[1];
+            } else if (positional_args.size() == 1 && !input_file.empty() && input_file != positional_args[0]) {
+                // Case: --input file.yaml output.json (single positional is output)
+                output_file = positional_args[0];
+            }
+        }
     }
     
     // If no input specified, use stdin
