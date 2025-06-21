@@ -4,6 +4,10 @@ project(yaml2json DESCRIPTION "High-performance YAML to JSON converter")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Generate build date for version information
+string(TIMESTAMP BUILD_DATE "%Y-%m-%d %H:%M:%S")
+add_compile_definitions(BUILD_DATE="${BUILD_DATE}")
+
 # Set default build type to Release if not specified
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -52,6 +56,15 @@ endif()
 
 # Fetch rapidyaml
 include(FetchContent)
+
+# Fetch CLI11
+FetchContent_Declare(
+    CLI11
+    GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
+    GIT_TAG        v2.4.1
+    GIT_SHALLOW    TRUE
+)
+
 FetchContent_Declare(
     rapidyaml
     GIT_REPOSITORY https://github.com/biojppm/rapidyaml.git
@@ -64,11 +77,11 @@ set(RYML_BUILD_TOOLS OFF CACHE BOOL "Disable rapidyaml tools")
 set(RYML_BUILD_TESTS OFF CACHE BOOL "Disable rapidyaml tests")
 set(RYML_BUILD_BENCHMARKS OFF CACHE BOOL "Disable rapidyaml benchmarks")
 
-FetchContent_MakeAvailable(rapidyaml)
+FetchContent_MakeAvailable(rapidyaml CLI11)
 
 # Create executable and link libraries
 add_executable(yaml2json src/main.cpp)
-target_link_libraries(yaml2json PRIVATE ryml)
+target_link_libraries(yaml2json PRIVATE ryml CLI11::CLI11)
 
 # Install target
 install(TARGETS yaml2json RUNTIME DESTINATION bin) 
