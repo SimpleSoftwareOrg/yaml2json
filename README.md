@@ -74,15 +74,33 @@ curl -sSL https://raw.githubusercontent.com/SimpleSoftwareOrg/yaml2json/main/ins
 ## Usage
 
 ```bash
-# File conversion
-yaml2json input.yaml > output.json
+# Basic file conversion
+yaml2json --input input.yaml --output output.json
 
-# Pipeline processing
-cat input.yaml | yaml2json > output.json
+# Short form options
+yaml2json -i input.yaml -o output.json
 
-# Batch processing
-yaml2json input.yaml > output.json
+# Pretty-printed JSON output
+yaml2json --input input.yaml --output output.json --pretty
+
+# Show help
+yaml2json --help
+
+# Show version (build date)
+yaml2json --version
 ```
+
+### Command-Line Options
+
+| Option | Short | Description | Required |
+|--------|-------|-------------|----------|
+| `--input` | `-i` | Input YAML file path | Yes |
+| `--output` | `-o` | Output JSON file path | Yes |
+| `--pretty` | `-p` | Pretty-print JSON with indentation | No |
+| `--help` | `-h` | Show help message and exit | No |
+| `--version` | `-v` | Show version (build date) and exit | No |
+
+The tool will provide verbose error messages for any issues encountered during conversion.
 
 ## Technical Specifications
 
@@ -114,6 +132,30 @@ make -j$(nproc)
 - `CMAKE_BUILD_TYPE=Release` - Production build with optimizations
 - `CMAKE_BUILD_TYPE=Debug` - Development build with debug information
 - `YAML2JSON_STATIC` - Static linking configuration
+
+## Testing
+
+The project includes comprehensive unit tests using Google Test framework. To build and run tests:
+
+```bash
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Debug
+make -j$(nproc)
+ctest --output-on-failure
+```
+
+### Test Structure
+
+- **Unit Tests**: Test individual components in isolation
+  - `FileReaderTest`: Tests file reading with mmap support
+  - `YamlToJsonConverterTest`: Tests YAML to JSON conversion
+  - `JsonFormatterTest`: Tests JSON pretty-printing
+  - `ErrorHandlerTest`: Tests error handling and reporting
+- **Integration Tests**: Test the complete workflow
+  - End-to-end conversion tests
+  - Error handling scenarios
+  - Performance tests with large files
 
 ## License
 
