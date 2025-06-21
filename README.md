@@ -133,6 +133,30 @@ make -j$(nproc)
 - `CMAKE_BUILD_TYPE=Debug` - Development build with debug information
 - `YAML2JSON_STATIC` - Static linking configuration
 
+## Testing
+
+The project includes comprehensive unit tests using Google Test framework. To build and run tests:
+
+```bash
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Debug
+make -j$(nproc)
+ctest --output-on-failure
+```
+
+### Test Structure
+
+- **Unit Tests**: Test individual components in isolation
+  - `FileReaderTest`: Tests file reading with mmap support
+  - `YamlToJsonConverterTest`: Tests YAML to JSON conversion
+  - `JsonFormatterTest`: Tests JSON pretty-printing
+  - `ErrorHandlerTest`: Tests error handling and reporting
+- **Integration Tests**: Test the complete workflow
+  - End-to-end conversion tests
+  - Error handling scenarios
+  - Performance tests with large files
+
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for complete terms.
