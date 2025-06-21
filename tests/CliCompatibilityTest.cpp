@@ -47,13 +47,21 @@ protected:
     
     std::string runCommand(const std::string& command) {
         std::string result;
+#ifdef _WIN32
+        FILE* pipe = _popen(command.c_str(), "r");
+#else
         FILE* pipe = popen(command.c_str(), "r");
+#endif
         if (pipe) {
             char buffer[128];
             while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
                 result += buffer;
             }
+#ifdef _WIN32
+            _pclose(pipe);
+#else
             pclose(pipe);
+#endif
         }
         return result;
     }
@@ -61,11 +69,35 @@ protected:
     bool fileExists(const std::string& filename) {
         return std::filesystem::exists(filename);
     }
+    
+    std::string getExecutablePath() {
+#ifdef _WIN32
+        return "..\\build\\yaml2json.exe";
+#else
+        return "../build/yaml2json";
+#endif
+    }
+    
+    std::string getCatCommand() {
+#ifdef _WIN32
+        return "type";
+#else
+        return "cat";
+#endif
+    }
+    
+    std::string getNullDevice() {
+#ifdef _WIN32
+        return "nul";
+#else
+        return "/dev/null";
+#endif
+    }
 };
 
 TEST_F(CliCompatibilityTest, PositionalArguments_InputAndOutput) {
     // Test: yaml2json input.yaml output.json
-    std::string command = "../build/yaml2json test_simple.yaml output_test.json";
+    std::string command = getExecutablePath() + " test_simple.yaml output_test.json";
     int result = system(command.c_str());
     
     EXPECT_EQ(result, 0);
@@ -80,7 +112,7 @@ TEST_F(CliCompatibilityTest, PositionalArguments_InputAndOutput) {
 
 TEST_F(CliCompatibilityTest, PositionalArguments_InputOnly_OutputToStdout) {
     // Test: yaml2json input.yaml (output to stdout)
-    std::string command = "../build/yaml2json test_simple.yaml";
+    std::string command = getExecutablePath() + " test_simple.yaml";
     std::string output = runCommand(command);
     
     EXPECT_FALSE(output.empty());
@@ -90,8 +122,8 @@ TEST_F(CliCompatibilityTest, PositionalArguments_InputOnly_OutputToStdout) {
 }
 
 TEST_F(CliCompatibilityTest, StdinToStdout_Pipeline) {
-    // Test: cat input.yaml | yaml2json
-    std::string command = "cat test_simple.yaml | ../build/yaml2json";
+    // Test: cat input.yaml | yaml2json (Unix) or type input.yaml | yaml2json (Windows)
+    std::string command = getCatCommand() + " test_simple.yaml | " + getExecutablePath();
     std::string output = runCommand(command);
     
     EXPECT_FALSE(output.empty());
@@ -102,7 +134,7 @@ TEST_F(CliCompatibilityTest, StdinToStdout_Pipeline) {
 
 TEST_F(CliCompatibilityTest, StdinToFile_WithOutputFlag) {
     // Test: cat input.yaml | yaml2json --output output.json
-    std::string command = "cat test_simple.yaml | ../build/yaml2json --output output_test.json";
+    std::string command = getCatCommand() + " test_simple.yaml | " + getExecutablePath() + " --output output_test.json";
     int result = system(command.c_str());
     
     EXPECT_EQ(result, 0);
@@ -115,7 +147,7 @@ TEST_F(CliCompatibilityTest, StdinToFile_WithOutputFlag) {
 
 TEST_F(CliCompatibilityTest, FileToStdout_WithInputFlag) {
     // Test: yaml2json --input input.yaml (output to stdout)
-    std::string command = "../build/yaml2json --input test_simple.yaml";
+    std::string command = getExecutablePath() + " --input test_simple.yaml";
     std::string output = runCommand(command);
     
     EXPECT_FALSE(output.empty());
@@ -125,7 +157,7 @@ TEST_F(CliCompatibilityTest, FileToStdout_WithInputFlag) {
 
 TEST_F(CliCompatibilityTest, ExplicitFlags_InputAndOutput) {
     // Test: yaml2json --input input.yaml --output output.json (original method)
-    std::string command = "../build/yaml2json --input test_simple.yaml --output output_test.json";
+    std::string command = getExecutablePath() + " --input test_simple.yaml --output output_test.json";
     int result = system(command.c_str());
     
     EXPECT_EQ(result, 0);
@@ -138,7 +170,7 @@ TEST_F(CliCompatibilityTest, ExplicitFlags_InputAndOutput) {
 
 TEST_F(CliCompatibilityTest, ShortFlags_InputAndOutput) {
     // Test: yaml2json -i input.yaml -o output.json
-    std::string command = "../build/yaml2json -i test_simple.yaml -o output_test.json";
+    std::string command = getExecutablePath() + " -i test_simple.yaml -o output_test.json";
     int result = system(command.c_str());
     
     EXPECT_EQ(result, 0);
@@ -151,7 +183,7 @@ TEST_F(CliCompatibilityTest, ShortFlags_InputAndOutput) {
 
 TEST_F(CliCompatibilityTest, PrettyPrint_PositionalArgs) {
     // Test: yaml2json input.yaml output.json --pretty
-    std::string command = "../build/yaml2json test_nested.yaml pretty_output.json --pretty";
+    std::string command = getExecutablePath() + " test_nested.yaml pretty_output.json --pretty";
     int result = system(command.c_str());
     
     EXPECT_EQ(result, 0);
@@ -168,7 +200,7 @@ TEST_F(CliCompatibilityTest, PrettyPrint_PositionalArgs) {
 
 TEST_F(CliCompatibilityTest, PrettyPrint_StdoutMode) {
     // Test: yaml2json input.yaml --pretty (to stdout)
-    std::string command = "../build/yaml2json test_nested.yaml --pretty";
+    std::string command = getExecutablePath() + " test_nested.yaml --pretty";
     std::string output = runCommand(command);
     
     EXPECT_FALSE(output.empty());
@@ -181,7 +213,7 @@ TEST_F(CliCompatibilityTest, PrettyPrint_StdoutMode) {
 
 TEST_F(CliCompatibilityTest, PrettyPrint_Pipeline) {
     // Test: cat input.yaml | yaml2json --pretty
-    std::string command = "cat test_nested.yaml | ../build/yaml2json --pretty";
+    std::string command = getCatCommand() + " test_nested.yaml | " + getExecutablePath() + " --pretty";
     std::string output = runCommand(command);
     
     EXPECT_FALSE(output.empty());
@@ -194,7 +226,7 @@ TEST_F(CliCompatibilityTest, PrettyPrint_Pipeline) {
 
 TEST_F(CliCompatibilityTest, MixedUsage_InputFlagPositionalOutput) {
     // Test: yaml2json --input input.yaml output.json
-    std::string command = "../build/yaml2json --input test_simple.yaml output_test.json";
+    std::string command = getExecutablePath() + " --input test_simple.yaml output_test.json";
     int result = system(command.c_str());
     
     EXPECT_EQ(result, 0);
@@ -207,7 +239,7 @@ TEST_F(CliCompatibilityTest, MixedUsage_InputFlagPositionalOutput) {
 
 TEST_F(CliCompatibilityTest, MixedUsage_PositionalInputOutputFlag) {
     // Test: yaml2json input.yaml --output output.json
-    std::string command = "../build/yaml2json test_simple.yaml --output output_test.json";
+    std::string command = getExecutablePath() + " test_simple.yaml --output output_test.json";
     int result = system(command.c_str());
     
     EXPECT_EQ(result, 0);
@@ -220,7 +252,7 @@ TEST_F(CliCompatibilityTest, MixedUsage_PositionalInputOutputFlag) {
 
 TEST_F(CliCompatibilityTest, ErrorCase_NonExistentFile) {
     // Test error handling for non-existent input file
-    std::string command = "../build/yaml2json non_existent.yaml 2>&1";
+    std::string command = getExecutablePath() + " non_existent.yaml 2>&1";
     std::string output = runCommand(command);
     
     EXPECT_NE(output.find("Error"), std::string::npos);
@@ -228,7 +260,7 @@ TEST_F(CliCompatibilityTest, ErrorCase_NonExistentFile) {
 
 TEST_F(CliCompatibilityTest, ErrorCase_NoInputProvided) {
     // Test error when no input is provided and stdin is empty
-    std::string command = "../build/yaml2json < /dev/null 2>&1";
+    std::string command = getExecutablePath() + " < " + getNullDevice() + " 2>&1";
     std::string output = runCommand(command);
     
     // Should produce error message for empty input
@@ -239,7 +271,7 @@ TEST_F(CliCompatibilityTest, ErrorCase_NoInputProvided) {
 
 TEST_F(CliCompatibilityTest, VersionFlag) {
     // Test --version flag works
-    std::string command = "../build/yaml2json --version";
+    std::string command = getExecutablePath() + " --version";
     std::string output = runCommand(command);
     
     EXPECT_NE(output.find("yaml2json"), std::string::npos);
@@ -248,7 +280,7 @@ TEST_F(CliCompatibilityTest, VersionFlag) {
 
 TEST_F(CliCompatibilityTest, HelpFlag) {
     // Test --help flag works
-    std::string command = "../build/yaml2json --help";
+    std::string command = getExecutablePath() + " --help";
     std::string output = runCommand(command);
     
     EXPECT_NE(output.find("High-performance YAML to JSON converter"), std::string::npos);
@@ -263,7 +295,7 @@ TEST_F(CliCompatibilityTest, PriorityTest_ExplicitFlagsOverPositional) {
     createTestFile("test_priority.yaml", "priority: explicit_flags\nvalue: 999\n");
     
     // This should use test_priority.yaml (from --input) not test_simple.yaml (positional)
-    std::string command = "../build/yaml2json test_simple.yaml --input test_priority.yaml --output output_test.json";
+    std::string command = getExecutablePath() + " test_simple.yaml --input test_priority.yaml --output output_test.json";
     int result = system(command.c_str());
     
     EXPECT_EQ(result, 0);
@@ -299,9 +331,9 @@ TEST_F(CliCompatibilityTest, ComplexNestedStructure_AllModes) {
     
     // Test all modes with complex structure
     std::vector<std::string> commands = {
-        "../build/yaml2json complex_test.yaml",  // File to stdout
-        "cat complex_test.yaml | ../build/yaml2json",  // Stdin to stdout
-        "../build/yaml2json --input complex_test.yaml",  // Explicit input flag
+        getExecutablePath() + " complex_test.yaml",  // File to stdout
+        getCatCommand() + " complex_test.yaml | " + getExecutablePath(),  // Stdin to stdout
+        getExecutablePath() + " --input complex_test.yaml",  // Explicit input flag
     };
     
     for (const auto& command : commands) {
