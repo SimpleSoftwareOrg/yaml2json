@@ -154,7 +154,7 @@ benchmark_file() {
     hyperfine -N --warmup 3 --runs 20 \
         --export-json "${name}_results.json" \
         --export-markdown "${name}_results.md" \
-        "../build/yaml2json $file" \
+        "../build/yaml2json --input $file --output /dev/stdout" \
         "yq -o json $file" \
         "./lq . $file"
     
