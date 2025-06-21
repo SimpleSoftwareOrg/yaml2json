@@ -71,11 +71,42 @@ protected:
     }
     
     std::string getExecutablePath() {
+        // Try multiple possible locations for the executable
+        std::vector<std::string> possiblePaths;
+        
 #ifdef _WIN32
-        return "..\\build\\yaml2json.exe";
+        possiblePaths = {
+            "yaml2json.exe",                    // Same directory (CI)
+            "..\\yaml2json.exe",               // One level up
+            "..\\build\\yaml2json.exe",        // Build directory
+            "..\\..\\yaml2json.exe",           // Two levels up
+            "Debug\\yaml2json.exe",            // Debug build
+            "Release\\yaml2json.exe",          // Release build
+            "..\\Debug\\yaml2json.exe",        // Debug build one level up
+            "..\\Release\\yaml2json.exe"       // Release build one level up
+        };
 #else
-        return "../build/yaml2json";
+        possiblePaths = {
+            "./yaml2json",                     // Same directory (CI)
+            "../yaml2json",                    // One level up
+            "../build/yaml2json",              // Build directory
+            "../../yaml2json",                 // Two levels up
+            "./Debug/yaml2json",               // Debug build
+            "./Release/yaml2json",             // Release build
+            "../Debug/yaml2json",              // Debug build one level up
+            "../Release/yaml2json"             // Release build one level up
+        };
 #endif
+        
+        // Check each possible path
+        for (const auto& path : possiblePaths) {
+            if (std::filesystem::exists(path)) {
+                return path;
+            }
+        }
+        
+        // If none found, return the first option as fallback
+        return possiblePaths[0];
     }
     
     std::string getCatCommand() {
