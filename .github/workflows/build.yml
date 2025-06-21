@@ -101,12 +101,28 @@ jobs:
         cd build
         cmake --build . --config Release --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }}
         
+    - name: Run tests (Unix)
+      if: ${{ !matrix.cross_compile && !startsWith(matrix.os, 'windows') }}
+      run: |
+        cd build
+        ctest --output-on-failure --build-config Release
+      shell: bash
+        
+    - name: Run tests (Windows)
+      if: ${{ !matrix.cross_compile && startsWith(matrix.os, 'windows') }}
+      run: |
+        cd build
+        ctest -C Release --output-on-failure
+      shell: powershell
+        
     - name: Test binary (Unix)
       if: ${{ !matrix.cross_compile && !startsWith(matrix.os, 'windows') }}
       run: |
         cd build
         echo 'test: value' > test.yaml
-        ./yaml2json test.yaml
+        ./yaml2json -i test.yaml -o output.json
+        cat output.json
+        ./yaml2json --version
       shell: bash
       
     - name: Test binary (Windows)
@@ -115,11 +131,17 @@ jobs:
         cd build
         echo 'test: value' | Out-File -FilePath test.yaml -Encoding utf8 -NoNewline
         if (Test-Path "yaml2json.exe") {
-          .\yaml2json.exe test.yaml
+          .\yaml2json.exe -i test.yaml -o output.json
+          Get-Content output.json
+          .\yaml2json.exe --version
         } elseif (Test-Path "Release\yaml2json.exe") {
-          .\Release\yaml2json.exe test.yaml  
+          .\Release\yaml2json.exe -i test.yaml -o output.json
+          Get-Content output.json
+          .\Release\yaml2json.exe --version
         } elseif (Test-Path "Debug\yaml2json.exe") {
-          .\Debug\yaml2json.exe test.yaml
+          .\Debug\yaml2json.exe -i test.yaml -o output.json
+          Get-Content output.json
+          .\Debug\yaml2json.exe --version
         } else {
           Write-Host "ERROR: Binary not found!"
           Get-ChildItem -Recurse

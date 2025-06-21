@@ -1,0 +1,5 @@
+invalid yaml:
+  - this is not valid
+   because indentation is wrong
+ and this: [unclosed
+key without value:

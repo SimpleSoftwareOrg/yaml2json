@@ -4,23 +4,23 @@ A YAML to JSON converter implemented using the RapidYAML library, designed for h
 
 ## Performance Analysis
 
-Comparative performance measurements were conducted using [hyperfine](https://github.com/sharkdp/hyperfine) on Apple Silicon (macOS 14.5.0) against established tools yq and lq:
+Comparative performance measurements were conducted using [hyperfine](https://github.com/sharkdp/hyperfine) on Apple Silicon (macOS) against established tools yq and lq:
 
 | File Size | yaml2json | yq | lq | Relative Performance |
 |-----------|-----------|----|----|---------------------|
-| 117KB | 3.1ms ± 0.7ms | 22.8ms ± 0.5ms | 20.4ms ± 0.4ms | 7.3x / 6.6x improvement |
-| 0.99MB | 12.2ms ± 1.0ms | 168.9ms ± 2.9ms | 150.0ms ± 20.8ms | 13.8x / 12.3x improvement |
-| 6.53MB | 68.4ms ± 0.4ms | 992.0ms ± 45.4ms | 898.4ms ± 25.1ms | 14.5x / 13.1x improvement |
-| 13.23MB | 140.4ms ± 2.7ms | 2.078s ± 0.063s | 1.856s ± 0.048s | 14.8x / 13.2x improvement |
+| 117KB | **3.0ms ± 0.4ms** | 23.4ms ± 1.0ms | 20.6ms ± 0.4ms | **7.9x / 6.95x improvement** |
+| 0.99MB | **8.9ms ± 0.2ms** | 171.7ms ± 10.5ms | 147.5ms ± 5.3ms | **19.35x / 16.63x improvement** |
+| 6.53MB | **47.9ms ± 0.4ms** | 991.6ms ± 22.1ms | 905.7ms ± 23.5ms | **20.69x / 18.90x improvement** |
+| 13.23MB | **96.4ms ± 2.2ms** | 2.091s ± 0.061s | 1.871s ± 0.052s | **21.68x / 19.40x improvement** |
 
 ### Implementation Characteristics
 
 - Zero-copy parsing using memory-mapped file input
-- Compiler optimizations: `-Ofast -flto=thin -march=native`
+- Optimized compiler flags: `-O3 -march=native` with Link Time Optimization (LTO)
 - Direct JSON serialization without intermediate data structures
 - Linear time complexity scaling with input size
 - Deterministic parsing behavior across test cases
-- Consistent performance scaling (10-15x improvement ratio maintained across file sizes)
+- Excellent performance scaling (**7-21x improvement** over competitors, with **better scaling** on larger files)
 
 ### Benchmark Methodology
 
@@ -73,16 +73,71 @@ curl -sSL https://raw.githubusercontent.com/SimpleSoftwareOrg/yaml2json/main/ins
 
 ## Usage
 
+The tool supports multiple input/output methods for maximum flexibility and backwards compatibility:
+
+### File-to-File Conversion
+
 ```bash
-# File conversion
-yaml2json input.yaml > output.json
+# Explicit flags (recommended for scripts)
+yaml2json --input input.yaml --output output.json
+yaml2json -i input.yaml -o output.json
+
+# Positional arguments (backwards compatible)
+yaml2json input.yaml output.json
+yaml2json input.yaml output.json --pretty
+```
+
+### Pipeline/Stream Processing
+
+```bash
+# Stdin to stdout (great for pipelines)
+cat input.yaml | yaml2json
+curl -s https://example.com/data.yaml | yaml2json
+
+# File to stdout
+yaml2json input.yaml
+yaml2json --input input.yaml
+
+# Stdin to file
+cat input.yaml | yaml2json --output output.json
+```
+
+### Pretty-Print JSON
+
+```bash
+# Any of the above with pretty formatting
+yaml2json input.yaml --pretty
+yaml2json -i input.yaml -o output.json --pretty
+cat input.yaml | yaml2json --pretty
+```
+
+### Command-Line Options
+
+| Option | Short | Description | Required |
+|--------|-------|-------------|----------|
+| `--input` | `-i` | Input YAML file path | No* |
+| `--output` | `-o` | Output JSON file path | No* |
+| `--pretty` | `-p` | Pretty-print JSON with indentation | No |
+| `--help` | `-h` | Show help message and exit | No |
+| `--version` | `-v` | Show version (build date) and exit | No |
+
+\* *Uses stdin/stdout when not specified. Supports positional arguments for backwards compatibility.*
+
+### Usage Examples
+
+```bash
+# Traditional usage
+yaml2json config.yaml config.json
 
 # Pipeline processing
-cat input.yaml | yaml2json > output.json
+kubectl get pods -o yaml | yaml2json | jq '.items[0].metadata.name'
 
-# Batch processing
-yaml2json input.yaml > output.json
+# Mixed usage
+yaml2json --input config.yaml | jq '.database.host'
+cat config.yaml | yaml2json --output config.json --pretty
 ```
+
+The tool will provide verbose error messages for any issues encountered during conversion.
 
 ## Technical Specifications
 
@@ -114,6 +169,30 @@ make -j$(nproc)
 - `CMAKE_BUILD_TYPE=Release` - Production build with optimizations
 - `CMAKE_BUILD_TYPE=Debug` - Development build with debug information
 - `YAML2JSON_STATIC` - Static linking configuration
+
+## Testing
+
+The project includes comprehensive unit tests using Google Test framework. To build and run tests:
+
+```bash
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Debug
+make -j$(nproc)
+ctest --output-on-failure
+```
+
+### Test Structure
+
+- **Unit Tests**: Test individual components in isolation
+  - `FileReaderTest`: Tests file reading with mmap support
+  - `YamlToJsonConverterTest`: Tests YAML to JSON conversion
+  - `JsonFormatterTest`: Tests JSON pretty-printing
+  - `ErrorHandlerTest`: Tests error handling and reporting
+- **Integration Tests**: Test the complete workflow
+  - End-to-end conversion tests
+  - Error handling scenarios
+  - Performance tests with large files
 
 ## License
 

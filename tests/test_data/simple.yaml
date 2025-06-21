@@ -1,0 +1,5 @@
+name: test
+version: 1.0
+enabled: true
+count: 42
+price: 3.14
