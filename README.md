@@ -16,7 +16,7 @@ Comparative performance measurements were conducted using [hyperfine](https://gi
 ### Implementation Characteristics
 
 - Zero-copy parsing using memory-mapped file input
-- Optimized compiler flags: `-O3 -march=native` with Link Time Optimization (LTO)
+- Optimized compiler flags: `-O3` (add `-march=native` for a local build with `-DYAML2JSON_NATIVE=ON`)
 - Direct JSON serialization without intermediate data structures
 - Linear time complexity scaling with input size
 - Deterministic parsing behavior across test cases
@@ -163,7 +163,7 @@ The tool will provide verbose error messages for any issues encountered during c
 ## Technical Specifications
 
 - Zero-copy parsing implementation using memory-mapped file I/O
-- Link-time optimization (LTO) with platform-specific instruction tuning
+- Release binaries run on any CPU of their architecture; Linux and Windows binaries are statically linked
 - Direct JSON serialization to stdout
 - Support for files up to available system memory
 - Cross-platform compatibility (macOS, Linux, Windows)
@@ -189,7 +189,8 @@ make -j$(nproc)
 
 - `CMAKE_BUILD_TYPE=Release` - Production build with optimizations
 - `CMAKE_BUILD_TYPE=Debug` - Development build with debug information
-- `YAML2JSON_STATIC` - Static linking configuration
+- `YAML2JSON_STATIC=ON` - Statically linked executable (Linux: no shared libraries; Windows: static MSVC runtime)
+- `YAML2JSON_NATIVE=ON` - Tune for the build machine's CPU (`-march=native`); not for binaries you distribute
 
 ## Testing
 
