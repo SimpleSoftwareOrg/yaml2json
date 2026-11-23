@@ -13,14 +13,26 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# -march=native makes a binary that needs the build machine's CPU: use it only for a local
+# build that runs where it was built, never for a binary that is distributed.
+option(YAML2JSON_NATIVE "Tune for the build machine's CPU (-march=native)" OFF)
+# Statically linked executable: no libstdc++/libc on Linux, no MSVC runtime DLLs on Windows.
+option(YAML2JSON_STATIC "Link the executable statically" OFF)
+
+if(YAML2JSON_STATIC AND MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 # Compiler flags
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -Wpedantic)
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
         add_compile_options(-O3)
-        # Only use -march=native when not cross-compiling
-        if(NOT CMAKE_CROSSCOMPILING)
+        if(YAML2JSON_NATIVE AND NOT CMAKE_CROSSCOMPILING)
             add_compile_options(-march=native)
+        endif()
+        if(YAML2JSON_STATIC)
+            add_compile_options(-ffunction-sections -fdata-sections)
         endif()
     endif()
 elseif(MSVC)
@@ -44,7 +56,7 @@ FetchContent_Declare(
 FetchContent_Declare(
     rapidyaml
     GIT_REPOSITORY https://github.com/biojppm/rapidyaml.git
-    GIT_TAG        v0.9.0
+    GIT_TAG        v0.16.0
     GIT_SHALLOW    TRUE
 )
 
@@ -61,7 +73,11 @@ set(RYML_BUILD_TOOLS OFF CACHE BOOL "Disable rapidyaml tools")
 set(RYML_BUILD_TESTS OFF CACHE BOOL "Disable rapidyaml tests")
 
 # For Windows, prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+if(YAML2JSON_STATIC)
+    set(gtest_force_shared_crt OFF CACHE BOOL "" FORCE)
+else()
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+endif()
 
 FetchContent_MakeAvailable(CLI11 rapidyaml googletest)
 
@@ -71,6 +87,7 @@ add_library(yaml2json_lib STATIC
     src/lib/YamlToJsonConverter.cpp
     src/lib/JsonFormatter.cpp
     src/lib/ErrorHandler.cpp
+    src/lib/BatchConverter.cpp
 )
 
 target_include_directories(yaml2json_lib PUBLIC
@@ -89,6 +106,11 @@ target_link_libraries(yaml2json PRIVATE
     CLI11::CLI11
 )
 
+if(YAML2JSON_STATIC AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # Drop the parts of the static C and C++ libraries that are never called.
+    target_link_options(yaml2json PRIVATE -static -Wl,--gc-sections)
+endif()
+
 # Enable testing (only for native builds)
 if(NOT CMAKE_CROSSCOMPILING)
     enable_testing()
@@ -102,6 +124,7 @@ if(NOT CMAKE_CROSSCOMPILING)
         tests/ErrorHandlerTest.cpp
         tests/IntegrationTest.cpp
         tests/CliCompatibilityTest.cpp
+        tests/BatchConverterTest.cpp
     )
 
     target_link_libraries(yaml2json_test PRIVATE

@@ -381,3 +381,46 @@ TEST_F(CliCompatibilityTest, ComplexNestedStructure_AllModes) {
     // Clean up
     std::filesystem::remove("complex_test.yaml");
 } 
+TEST_F(CliCompatibilityTest, Batch_OneLinePerDocumentOfEveryFile) {
+    createTestFile("batch_multi.yaml", "a: 1\n---\nb: true\n");
+    createTestFile("batch_empty.yaml", "");
+    std::string command = getExecutablePath() +
+        " --batch test_simple.yaml batch_multi.yaml batch_empty.yaml";
+    std::string output = runCommand(command);
+
+    EXPECT_EQ(output,
+        "{\"file\":\"test_simple.yaml\",\"doc\":0,\"duplicate_keys\":false,"
+        "\"data\":{\"name\":\"test\",\"version\":\"1.0\",\"enabled\":true}}\n"
+        "{\"file\":\"batch_multi.yaml\",\"doc\":0,\"duplicate_keys\":false,\"data\":{\"a\":\"1\"}}\n"
+        "{\"file\":\"batch_multi.yaml\",\"doc\":1,\"duplicate_keys\":false,\"data\":{\"b\":true}}\n"
+        "{\"file\":\"batch_empty.yaml\",\"doc\":0,\"duplicate_keys\":false,\"data\":null}\n");
+
+    std::filesystem::remove("batch_multi.yaml");
+    std::filesystem::remove("batch_empty.yaml");
+}
+
+TEST_F(CliCompatibilityTest, Batch_OutputFile) {
+    std::string command = getExecutablePath() + " --batch -o output_test.json test_simple.yaml";
+    EXPECT_EQ(system(command.c_str()), 0);
+    EXPECT_NE(readFile("output_test.json").find("\"file\":\"test_simple.yaml\""), std::string::npos);
+}
+
+TEST_F(CliCompatibilityTest, Batch_InvalidFileFailsNamingItAndPrintsNothing) {
+    createTestFile("batch_tab.yaml", "PODS:\n\t- a (1.0)\n");
+    std::string command = getExecutablePath() + " --batch test_simple.yaml batch_tab.yaml";
+    EXPECT_NE(system((command + " > " + getNullDevice() + " 2>&1").c_str()), 0);
+    EXPECT_EQ(runCommand(command + " 2>" + getNullDevice()), "");
+    std::string err = runCommand(command + " 2>&1");
+    EXPECT_NE(err.find("batch_tab.yaml"), std::string::npos) << err;
+    EXPECT_NE(err.find("line 2"), std::string::npos) << err;
+
+    std::filesystem::remove("batch_tab.yaml");
+}
+
+TEST_F(CliCompatibilityTest, Batch_NeedsInputAndNoPretty) {
+    EXPECT_NE(system((getExecutablePath() + " --batch > " + getNullDevice() + " 2>&1").c_str()), 0);
+    EXPECT_NE(system((getExecutablePath() + " --batch --pretty test_simple.yaml > " +
+                      getNullDevice() + " 2>&1").c_str()), 0);
+    EXPECT_NE(system((getExecutablePath() + " --batch non_existent.yaml > " +
+                      getNullDevice() + " 2>&1").c_str()), 0);
+}

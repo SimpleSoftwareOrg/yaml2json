@@ -16,7 +16,7 @@ Comparative performance measurements were conducted using [hyperfine](https://gi
 ### Implementation Characteristics
 
 - Zero-copy parsing using memory-mapped file input
-- Optimized compiler flags: `-O3 -march=native` with Link Time Optimization (LTO)
+- Optimized compiler flags: `-O3` (add `-march=native` for a local build with `-DYAML2JSON_NATIVE=ON`)
 - Direct JSON serialization without intermediate data structures
 - Linear time complexity scaling with input size
 - Deterministic parsing behavior across test cases
@@ -111,6 +111,26 @@ yaml2json -i input.yaml -o output.json --pretty
 cat input.yaml | yaml2json --pretty
 ```
 
+### Batch Mode
+
+`--batch` converts many files in one run and prints one JSON line per YAML document:
+
+```bash
+yaml2json --batch pubspec.yaml pubspec.lock
+# {"file":"pubspec.yaml","doc":0,"duplicate_keys":false,"data":{"name":"app","version":"1.10.0",...}}
+# {"file":"pubspec.lock","doc":0,"duplicate_keys":false,"data":{"packages":{...},"sdks":{...}}}
+```
+
+- `file` is the name as given, `doc` the document's index in the file; every document of a
+  multi-document file is printed, and an empty or comment-only file gives one `null` document.
+- Booleans (`true`, `True`, `TRUE`, `false`, ...) and nulls (`null`, `~`, empty) of the YAML 1.2
+  core schema stay JSON booleans and `null`; every other scalar is a string holding its text, so
+  `1.10`, `0x10` and long digit-only checksums keep every character. Quoted `"true"` is a string.
+- Aliases are expanded; a merge key `<<` stays a plain key.
+- `duplicate_keys` is `true` when a mapping in the document repeats a key.
+- Invalid YAML (tab indentation, text after `...` or after a closing quote, invalid UTF-8, ...)
+  fails with a non-zero exit and a message naming the file and line; nothing is printed then.
+
 ### Command-Line Options
 
 | Option | Short | Description | Required |
@@ -118,6 +138,7 @@ cat input.yaml | yaml2json --pretty
 | `--input` | `-i` | Input YAML file path | No* |
 | `--output` | `-o` | Output JSON file path | No* |
 | `--pretty` | `-p` | Pretty-print JSON with indentation | No |
+| `--batch` | | Convert every input file named, one JSON line per document | No |
 | `--help` | `-h` | Show help message and exit | No |
 | `--version` | `-v` | Show version (build date) and exit | No |
 
@@ -142,7 +163,7 @@ The tool will provide verbose error messages for any issues encountered during c
 ## Technical Specifications
 
 - Zero-copy parsing implementation using memory-mapped file I/O
-- Link-time optimization (LTO) with platform-specific instruction tuning
+- Release binaries run on any CPU of their architecture; Linux and Windows binaries are statically linked
 - Direct JSON serialization to stdout
 - Support for files up to available system memory
 - Cross-platform compatibility (macOS, Linux, Windows)
@@ -168,7 +189,8 @@ make -j$(nproc)
 
 - `CMAKE_BUILD_TYPE=Release` - Production build with optimizations
 - `CMAKE_BUILD_TYPE=Debug` - Development build with debug information
-- `YAML2JSON_STATIC` - Static linking configuration
+- `YAML2JSON_STATIC=ON` - Statically linked executable (Linux: no shared libraries; Windows: static MSVC runtime)
+- `YAML2JSON_NATIVE=ON` - Tune for the build machine's CPU (`-march=native`); not for binaries you distribute
 
 ## Testing
 
