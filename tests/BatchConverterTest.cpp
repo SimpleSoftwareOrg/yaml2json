@@ -137,6 +137,8 @@ TEST(BatchConverterTest, MustFail) {
         {"a: [x, y\n", "line"},                       // unclosed flow sequence
         {"a: {x: 1\n", "line"},                       // unclosed flow mapping
         {"a: b: c\n", "line 1"},                     // a mapping value inside a plain scalar
+        {"env:\n  sdk:\t^3.0.0\n", "line 2"},      // tab after ':' (rapidyaml reads a string)
+        {"deps:\n  -\ta\n  - b\n", "line 2"},       // tab after '-' (rapidyaml reads a string)
         {"a: 1\nb: *nope\n", "line 2"},              // undefined alias
         {"*a : 1\n", "line 1"},                      // alias as a key
         {"a: \"\\ud800\"\n", "line 1"},              // escape to a surrogate

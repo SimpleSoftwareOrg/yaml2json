@@ -155,6 +155,23 @@ private:
         return view(s);
     }
 
+    // YAML never lets a plain scalar start with "- ", "? " or ": ", or hold ": " or " #"
+    // (space or tab). rapidyaml 0.16 still returns such a scalar when a tab follows an
+    // indicator (`key:<TAB>value` on a nested line, `-<TAB>item`), where package:yaml reads a
+    // mapping or a sequence: fail instead of returning different data.
+    void check_plain(csubstr s) const {
+        const std::string_view t = view(s);
+        auto blank = [&](size_t i) { return i < t.size() && (t[i] == ' ' || t[i] == '\t'); };
+        bool bad = t.size() >= 2 && (t[0] == '-' || t[0] == '?' || t[0] == ':') && blank(1);
+        for (size_t i = 0; !bad && i + 1 < t.size(); ++i) {
+            bad = (t[i] == ':' && blank(i + 1)) || (blank(i) && t[i + 1] == '#');
+        }
+        if (bad) {
+            fail(s, "a plain scalar cannot read as \"" + std::string(t) +
+                    "\" (is a tab used after ':' or '-'?)");
+        }
+    }
+
     // A scalar is resolved by the core schema when it is plain and untagged, or tagged
     // !!null or !!bool; anything else (quoted, block, !!str, other tags) is a string.
     static bool resolves(bool styled, csubstr tag) {
@@ -180,6 +197,7 @@ private:
         }
         const std::string_view key = text(t_.key(id), ty.is_key_dquo());
         const bool styled = is_styled(ty.is_key_literal(), ty.is_key_folded(), ty.is_key_quoted());
+        if (!styled) check_plain(t_.key(id));
         const csubstr tag = ty.has_key_tag() ? t_.key_tag(id) : csubstr();
         if (resolves(styled, tag) && (ty.key_is_null() || is_null_text(key))) {
             return "null";
@@ -225,6 +243,7 @@ private:
             out += ']';
         } else if (ty.has_val()) {
             const bool styled = is_styled(ty.is_val_literal(), ty.is_val_folded(), ty.is_val_quoted());
+            if (!styled) check_plain(t_.val(id));
             const csubstr tag = ty.has_val_tag() ? t_.val_tag(id) : csubstr();
             scalar(out, text(t_.val(id), ty.is_val_dquo()), ty.val_is_null(), resolves(styled, tag));
         } else {
