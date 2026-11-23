@@ -71,6 +71,7 @@ add_library(yaml2json_lib STATIC
     src/lib/YamlToJsonConverter.cpp
     src/lib/JsonFormatter.cpp
     src/lib/ErrorHandler.cpp
+    src/lib/BatchConverter.cpp
 )
 
 target_include_directories(yaml2json_lib PUBLIC
@@ -102,6 +103,7 @@ if(NOT CMAKE_CROSSCOMPILING)
         tests/ErrorHandlerTest.cpp
         tests/IntegrationTest.cpp
         tests/CliCompatibilityTest.cpp
+        tests/BatchConverterTest.cpp
     )
 
     target_link_libraries(yaml2json_test PRIVATE

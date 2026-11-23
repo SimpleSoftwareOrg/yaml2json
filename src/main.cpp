@@ -5,11 +5,85 @@
 #include <cstdlib>
 #include <cerrno>
 #include <cstring>
+#include <iterator>
+#include <string>
+#include <vector>
 
 #include "FileReader.h"
 #include "YamlToJsonConverter.h"
 #include "JsonFormatter.h"
 #include "ErrorHandler.h"
+#include "BatchConverter.h"
+
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
+
+namespace {
+
+// --batch: converts every named file, in order, and writes the JSON lines only when all of
+// them are valid; otherwise names the first invalid file and writes nothing.
+int run_batch(const std::string& input_file, const std::vector<std::string>& positional,
+              const std::string& output_file, bool pretty_print) {
+    if (pretty_print) {
+        std::cerr << "Error: --pretty cannot be used with --batch" << std::endl;
+        return 1;
+    }
+    std::vector<std::string> inputs;
+    if (!input_file.empty()) inputs.push_back(input_file);
+    inputs.insert(inputs.end(), positional.begin(), positional.end());
+    if (inputs.empty()) {
+        std::cerr << "Error: --batch needs at least one input file" << std::endl;
+        return 1;
+    }
+
+    std::string lines;
+    std::string content;
+    for (const auto& name : inputs) {
+        std::ifstream file(name, std::ios::binary);
+        if (!file) {
+            std::cerr << "Error: Cannot open input file '" << name
+                      << "': " << std::strerror(errno) << std::endl;
+            return 1;
+        }
+        content.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+        if (file.bad()) {
+            std::cerr << "Error: Failed to read input file '" << name << "'" << std::endl;
+            return 1;
+        }
+        try {
+            yaml2json::BatchConverter::append_documents(lines, name, content.data(), content.size());
+        } catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+            return 1;
+        }
+    }
+
+    if (output_file.empty()) {
+#ifdef _WIN32
+        // Lines end in "\n" on every host.
+        _setmode(_fileno(stdout), _O_BINARY);
+#endif
+        std::cout.write(lines.data(), static_cast<std::streamsize>(lines.size()));
+        std::cout.flush();
+        if (!std::cout.good()) {
+            std::cerr << "Error: Failed to write to stdout" << std::endl;
+            return 1;
+        }
+        return 0;
+    }
+    std::ofstream output(output_file, std::ios::binary);
+    output.write(lines.data(), static_cast<std::streamsize>(lines.size()));
+    if (!output.good()) {
+        std::cerr << "Error: Failed to write to output file '" << output_file
+                  << "': " << std::strerror(errno) << std::endl;
+        return 1;
+    }
+    return 0;
+}
+
+} // namespace
 
 int main(int argc, char **argv) {
     // Disable synchronization with C I/O to speed up reading/writing
@@ -32,8 +106,16 @@ int main(int argc, char **argv) {
     
     app.add_flag("-p,--pretty", pretty_print, "Pretty-print JSON output with indentation");
     
+    bool batch = false;
+    app.add_flag("--batch", batch,
+                 "Convert every input file named in one run and print one JSON line per YAML "
+                 "document: {\"file\",\"doc\",\"duplicate_keys\",\"data\"}. Booleans and nulls "
+                 "stay typed; every other scalar becomes a string holding its text");
+
     // Positional arguments for backwards compatibility
-    app.add_option("files", positional_args, "Input file [output file] (use stdin/stdout if omitted)");
+    app.add_option("files", positional_args,
+                   "Input file [output file] (use stdin/stdout if omitted); with --batch, "
+                   "the input files");
     
     // Version option
     app.set_version_flag("-v,--version", std::string("yaml2json built on ") + BUILD_DATE);
@@ -45,6 +127,10 @@ int main(int argc, char **argv) {
         return app.exit(e);
     }
     
+    if (batch) {
+        return run_batch(input_file, positional_args, output_file, pretty_print);
+    }
+
     // Determine input and output sources with backwards compatibility
     bool use_stdin = false;
     bool use_stdout = false;
