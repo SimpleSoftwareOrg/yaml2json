@@ -10,18 +10,45 @@ void ryml_error_handler(const char* msg, size_t msg_len, ryml::Location loc, voi
         error_msg.append(loc.name.str, loc.name.len);
         error_msg += "'";
     }
-    error_msg += " at line ";
-    error_msg += std::to_string(loc.line);
-    error_msg += ", column ";
-    error_msg += std::to_string(loc.col);
+    if (loc.line != ryml::npos) {
+        error_msg += " at line ";
+        error_msg += std::to_string(loc.line);
+        if (loc.col != ryml::npos) {
+            error_msg += ", column ";
+            error_msg += std::to_string(loc.col);
+        }
+    }
     error_msg += ": ";
     error_msg.append(msg, msg_len);
     
     throw ConversionError(error_msg);
 }
 
+namespace {
+
+[[noreturn]] void on_basic_error(ryml::csubstr msg, ryml::ErrorDataBasic const&, void* user_data) {
+    ryml_error_handler(msg.str, msg.len, ryml::Location(), user_data);
+    throw ConversionError("YAML error");  // not reached: the handler throws
+}
+
+[[noreturn]] void on_parse_error(ryml::csubstr msg, ryml::ErrorDataParse const& data, void* user_data) {
+    ryml_error_handler(msg.str, msg.len, data.ymlloc, user_data);
+    throw ConversionError("YAML error");  // not reached: the handler throws
+}
+
+[[noreturn]] void on_visit_error(ryml::csubstr msg, ryml::ErrorDataVisit const&, void* user_data) {
+    ryml_error_handler(msg.str, msg.len, ryml::Location(), user_data);
+    throw ConversionError("YAML error");  // not reached: the handler throws
+}
+
+} // namespace
+
 void setup_error_handlers() {
-    ryml::set_callbacks(ryml::Callbacks(nullptr, nullptr, nullptr, ryml_error_handler));
+    ryml::Callbacks callbacks;
+    callbacks.set_error_basic(on_basic_error);
+    callbacks.set_error_parse(on_parse_error);
+    callbacks.set_error_visit(on_visit_error);
+    ryml::set_callbacks(callbacks);
 }
 
 std::string format_error_with_location(const std::string& base_message, 

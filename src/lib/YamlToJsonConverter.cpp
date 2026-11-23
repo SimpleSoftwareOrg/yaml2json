@@ -5,6 +5,18 @@
 
 namespace yaml2json {
 
+namespace {
+
+void clear_container_styles(ryml::Tree& tree, ryml::id_type id) {
+    if (!tree.is_container(id)) return;
+    tree.set_container_style(id, ryml::NOTYPE);
+    for (ryml::id_type ch = tree.first_child(id); ch != ryml::NONE; ch = tree.next_sibling(ch)) {
+        clear_container_styles(tree, ch);
+    }
+}
+
+} // namespace
+
 std::string YamlToJsonConverter::convert(const char* yaml_data, size_t yaml_size) {
     return convert(yaml_data, yaml_size, "");
 }
@@ -41,12 +53,17 @@ ryml::Tree YamlToJsonConverter::parse_yaml(const char* yaml_data, size_t yaml_si
     } else {
         ryml::parse_in_place(yaml_sub, &tree);
     }
-    
+
+    // rapidyaml keeps the source's block or flow layout on containers and its JSON emitter
+    // follows it; drop it so the output stays on one line, as it always has.
+    clear_container_styles(tree, tree.root_id());
     return tree;
 }
 
 std::string YamlToJsonConverter::tree_to_json(const ryml::Tree& tree) {
-    return ryml::emitrs_json<std::string>(tree);
+    // A multi-document stream is not one JSON value: refuse it, as rapidyaml did before 0.15.
+    const auto opts = ryml::EmitOptions().json_err_on_stream(true);
+    return ryml::emitrs_json<std::string>(tree, tree.root_id(), opts);
 }
 
 } // namespace yaml2json
